@@ -108,6 +108,66 @@ app.post('/interactions', async (req, res) => {
       },
     });
   }
+  app.post('/interactions', async (req, res) => {
+  // Log that a request reached the handler (helps confirm Azure got Discord's POST)
+  console.log('>>> /interactions called');
+
+  // Safety: show whether signature headers are present (do NOT log tokens)
+  const signature = req.headers['x-signature-ed25519'];
+  const timestamp = req.headers['x-signature-timestamp'];
+  console.log('signature header present:', !!signature, 'timestamp present:', !!timestamp);
+
+  // Verify signature
+  let isValid = false;
+  try {
+    isValid = verifyKey(req.rawBody, signature, timestamp, PUBLIC_KEY);
+    console.log('verifyKey result:', isValid);
+  } catch (err) {
+    console.error('verifyKey threw:', err?.message || err);
+    return res.status(401).send('Bad request signature (exception)');
+  }
+  if (!isValid) {
+    console.warn('Bad signature - returning 401');
+    return res.status(401).send('Bad request signature (invalid)');
+  }
+
+  // At this point we have a valid request; log interaction type and command name
+  const { type, data } = req.body || {};
+  console.log('interaction type:', type, 'command name:', data?.name);
+
+  // handle ping quickly
+  if (type === InteractionType.PING) {
+    console.log('responding to PING');
+    return res.send({ type: InteractionResponseType.PONG });
+  }
+
+  // handle application commands (test/kick...)
+  if (type === InteractionType.APPLICATION_COMMAND) {
+    const name = data?.name;
+    if (name === 'test') {
+      console.log('handling /test');
+      return res.send({
+        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+        data: { content: `hello world ${getRandomEmoji()}` },
+      });
+    }
+
+    if (name === 'kick') {
+      console.log('handling /kick (stub)'); // your full logic can remain here
+      return res.send({
+        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+        data: { content: 'Kick command received (logic coming next 👀)', flags: 64 },
+      });
+    }
+
+    console.error('unknown command:', name);
+    return res.status(400).json({ error: 'unknown command' });
+  }
+
+  console.error('unknown interaction type', type);
+  return res.status(400).json({ error: 'unknown interaction type' });
+});
+
 }
 
 
