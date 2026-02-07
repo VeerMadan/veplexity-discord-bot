@@ -12,20 +12,14 @@ import { getRandomEmoji } from './utils.js';
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// 🔑 Capture raw body FIRST (critical)
-app.use((req, res, next) => {
-  let data = '';
-  req.on('data', chunk => {
-    data += chunk;
-  });
-  req.on('end', () => {
-    req.rawBody = data;
-    next();
-  });
-});
-
-// Parse JSON AFTER raw body capture
-app.use(express.json());
+// ✅ CORRECT way: capture raw body ONCE
+app.use(
+  express.json({
+    verify: (req, res, buf) => {
+      req.rawBody = buf;
+    },
+  })
+);
 
 const PUBLIC_KEY = process.env.DISCORD_PUBLIC_KEY;
 if (!PUBLIC_KEY) {
@@ -35,7 +29,7 @@ if (!PUBLIC_KEY) {
 app.post('/interactions', (req, res) => {
   const { type, data } = req.body ?? {};
 
-  // ✅ 1. Respond to PING IMMEDIATELY (no verification)
+  // ✅ Respond to PING immediately (no verification)
   if (type === InteractionType.PING) {
     console.log('✅ Discord PING received');
     return res.status(200).json({
@@ -43,12 +37,12 @@ app.post('/interactions', (req, res) => {
     });
   }
 
-  // ✅ 2. Verify signature for all other requests
+  // ✅ Verify signature for everything else
   const signature = req.headers['x-signature-ed25519'];
   const timestamp = req.headers['x-signature-timestamp'];
 
   const isValid = verifyKey(
-    Buffer.from(req.rawBody),
+    req.rawBody,
     signature,
     timestamp,
     PUBLIC_KEY
@@ -59,7 +53,7 @@ app.post('/interactions', (req, res) => {
     return res.status(401).send('Bad request signature');
   }
 
-  // ✅ 3. Handle slash commands
+  // ✅ Handle slash commands
   if (type === InteractionType.APPLICATION_COMMAND) {
 
     if (data.name === 'test') {
