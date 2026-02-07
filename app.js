@@ -115,8 +115,8 @@ app.post('/interactions', async (req, res) => {
 
   return res.status(400).send('Unhandled interaction');
 });
+ console.log("⚙️ About to start server...");
 
 app.listen(PORT, () => {
-  console.log(`✅ Listening on port ${PORT}`);
+  console.log(`✅ Server listening on port ${PORT}`);
 });
-
