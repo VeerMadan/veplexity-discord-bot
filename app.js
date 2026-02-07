@@ -10,7 +10,7 @@ import {
 import { getRandomEmoji } from './utils.js';
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 
 const PUBLIC_KEY = process.env.DISCORD_PUBLIC_KEY;
 if (!PUBLIC_KEY) {
@@ -18,34 +18,21 @@ if (!PUBLIC_KEY) {
 }
 
 /**
- * ✅ IMPORTANT:
- * Only parse JSON for /interactions
- * (Azure reads body globally; this avoids double-read)
+ * ✅ CRITICAL:
+ * Use RAW body for Discord interactions (Azure-safe)
  */
 app.post(
   '/interactions',
-  express.json({
-    verify: (req, res, buf) => {
-      req.rawBody = buf;
-    },
-  }),
+  express.raw({ type: '*/*' }),
   (req, res) => {
-    const { type, data } = req.body || {};
-
-    // 1️⃣ Respond to PING immediately (no verification)
-    if (type === InteractionType.PING) {
-      console.log('✅ Discord PING received');
-      return res.status(200).json({
-        type: InteractionResponseType.PONG,
-      });
-    }
-
-    // 2️⃣ Verify signature for all other requests
     const signature = req.headers['x-signature-ed25519'];
     const timestamp = req.headers['x-signature-timestamp'];
 
+    const rawBody = req.body;
+
+    // Verify request
     const isValid = verifyKey(
-      req.rawBody,
+      rawBody,
       signature,
       timestamp,
       PUBLIC_KEY
@@ -56,8 +43,21 @@ app.post(
       return res.status(401).send('Bad request signature');
     }
 
-    // 3️⃣ Handle commands
+    // Parse JSON manually
+    const interaction = JSON.parse(rawBody.toString('utf8'));
+    const { type, data } = interaction;
+
+    // ✅ Handle PING
+    if (type === InteractionType.PING) {
+      console.log('✅ Discord PING received');
+      return res.status(200).json({
+        type: InteractionResponseType.PONG,
+      });
+    }
+
+    // ✅ Handle commands
     if (type === InteractionType.APPLICATION_COMMAND) {
+
       if (data.name === 'test') {
         return res.json({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
@@ -82,7 +82,7 @@ app.post(
   }
 );
 
-// Optional: health check (prevents Azure probing /interactions)
+// Health check (prevents Azure probing issues)
 app.get('/', (req, res) => {
   res.status(200).send('OK');
 });
