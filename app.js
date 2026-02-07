@@ -1,3 +1,5 @@
+console.log("🚀 App.js booting...");
+
 import 'dotenv/config';
 import express from 'express';
 import { verifyKey } from 'discord-interactions';
@@ -115,5 +117,6 @@ app.post('/interactions', async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Listening on port ${PORT}`);
+  console.log(`✅ Listening on port ${PORT}`);
 });
+
