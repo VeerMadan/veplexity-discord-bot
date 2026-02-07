@@ -13,24 +13,28 @@ const app = express();
 const PORT = process.env.PORT || 8080;
 
 const PUBLIC_KEY = process.env.DISCORD_PUBLIC_KEY;
-if (!PUBLIC_KEY) {
-  throw new Error('DISCORD_PUBLIC_KEY is not set');
-}
+if (!PUBLIC_KEY) throw new Error('DISCORD_PUBLIC_KEY is not set');
 
-/**
- * ✅ CRITICAL:
- * Use RAW body for Discord interactions (Azure-safe)
- */
 app.post(
   '/interactions',
   express.raw({ type: '*/*' }),
   (req, res) => {
+    const rawBody = req.body;
+    const interaction = JSON.parse(rawBody.toString('utf8'));
+    const { type, data } = interaction;
+
+    // ✅ 1. HANDLE PING FIRST — NO VERIFICATION
+    if (type === InteractionType.PING) {
+      console.log('✅ Discord PING received');
+      return res.status(200).json({
+        type: InteractionResponseType.PONG,
+      });
+    }
+
+    // ✅ 2. VERIFY SIGNATURE FOR EVERYTHING ELSE
     const signature = req.headers['x-signature-ed25519'];
     const timestamp = req.headers['x-signature-timestamp'];
 
-    const rawBody = req.body;
-
-    // Verify request
     const isValid = verifyKey(
       rawBody,
       signature,
@@ -43,36 +47,13 @@ app.post(
       return res.status(401).send('Bad request signature');
     }
 
-    // Parse JSON manually
-    const interaction = JSON.parse(rawBody.toString('utf8'));
-    const { type, data } = interaction;
-
-    // ✅ Handle PING
-    if (type === InteractionType.PING) {
-      console.log('✅ Discord PING received');
-      return res.status(200).json({
-        type: InteractionResponseType.PONG,
-      });
-    }
-
-    // ✅ Handle commands
+    // ✅ 3. HANDLE COMMANDS
     if (type === InteractionType.APPLICATION_COMMAND) {
-
       if (data.name === 'test') {
         return res.json({
           type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
           data: {
             content: `hello world ${getRandomEmoji()}`,
-          },
-        });
-      }
-
-      if (data.name === 'kick') {
-        return res.json({
-          type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
-          data: {
-            content: 'Kick command received 👢',
-            flags: 64,
           },
         });
       }
@@ -82,12 +63,9 @@ app.post(
   }
 );
 
-// Health check (prevents Azure probing issues)
-app.get('/', (req, res) => {
-  res.status(200).send('OK');
-});
+// Health check
+app.get('/', (_, res) => res.send('OK'));
 
-console.log("⚙️ About to start server...");
 app.listen(PORT, () => {
   console.log(`✅ Server listening on port ${PORT}`);
 });
