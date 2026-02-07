@@ -1,85 +1,60 @@
 import 'dotenv/config';
-import { getRPSChoices } from './game.js';
-import {
-  capitalize,
-  InstallGuildCommands,
-} from './utils.js';
 
+const APP_ID = process.env.DISCORD_CLIENT_ID;
+const TOKEN = process.env.DISCORD_TOKEN;
+const GUILD_ID = process.env.GUILD_ID;
 
-
-
-// Get the game choices from game.js
-function createCommandChoices() {
-  const choices = getRPSChoices();
-  const commandChoices = [];
-
-  for (let choice of choices) {
-    commandChoices.push({
-      name: capitalize(choice),
-      value: choice.toLowerCase(),
-    });
-  }
-
-  return commandChoices;
+if (!APP_ID || !TOKEN || !GUILD_ID) {
+  throw new Error('Missing APP_ID, DISCORD_TOKEN, or GUILD_ID');
 }
 
-// Simple test command
-const TEST_COMMAND = {
-  name: 'test',
-  description: 'Basic command',
-  type: 1,
-  integration_types: [0, 1],
-  contexts: [0, 1, 2],
-};
+const url = `https://discord.com/api/v10/applications/${APP_ID}/guilds/${GUILD_ID}/commands`;
 
-// Command containing options
-const CHALLENGE_COMMAND = {
-  name: 'challenge',
-  description: 'Challenge to a match of rock paper scissors',
-  options: [
-    {
-      type: 3,
-      name: 'object',
-      description: 'Pick your object',
-      required: true,
-      choices: createCommandChoices(),
-    },
-  ],
-  type: 1,
-  integration_types: [0, 1],
-  contexts: [0, 2],
-};
-
-const KICK_COMMAND = {
-  name: 'kick',
-  description: 'Kick a member from the server',
-  options: [
-    {
-      type: 6, // USER
-      name: 'user',
-      description: 'User to kick',
-      required: true,
-    },
-    {
-      type: 3, // STRING
-      name: 'reason',
-      description: 'Reason for kick',
-      required: false,
-    },
-  ],
-  type: 1,
-};
-
-
-const ALL_COMMANDS = [
-  TEST_COMMAND,
-  CHALLENGE_COMMAND,
-  KICK_COMMAND,
+const commands = [
+  {
+    name: 'test',
+    description: 'Basic test command',
+    type: 1,
+  },
+  {
+    name: 'kick',
+    description: 'Kick a member from the server',
+    type: 1,
+    options: [
+      {
+        type: 6, // USER
+        name: 'user',
+        description: 'User to kick',
+        required: true,
+      },
+      {
+        type: 3, // STRING
+        name: 'reason',
+        description: 'Reason for kick',
+        required: false,
+      },
+    ],
+  },
 ];
 
+async function register() {
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bot ${TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(commands),
+  });
 
-InstallGuildCommands(
-  process.env.DISCORD_CLIENT_ID,
-  process.env.GUILD_ID,
-  ALL_COMMANDS
-);
+  const data = await res.json();
+
+  if (!res.ok) {
+    console.error('❌ Failed to register commands:', data);
+    process.exit(1);
+  }
+
+  console.log('✅ Successfully registered GUILD commands:', data.map(c => c.name));
+}
+
+register();
