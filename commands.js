@@ -2,6 +2,8 @@ import 'dotenv/config';
 import { getRPSChoices } from './game.js';
 import { capitalize, InstallGlobalCommands } from './utils.js';
 
+
+
 // Get the game choices from game.js
 function createCommandChoices() {
   const choices = getRPSChoices();
@@ -44,6 +46,32 @@ const CHALLENGE_COMMAND = {
   contexts: [0, 2],
 };
 
-const ALL_COMMANDS = [TEST_COMMAND, CHALLENGE_COMMAND];
+const KICK_COMMAND = {
+  name: 'kick',
+  description: 'Kick a member from the server',
+  options: [
+    {
+      type: 6, // USER
+      name: 'user',
+      description: 'User to kick',
+      required: true,
+    },
+    {
+      type: 3, // STRING
+      name: 'reason',
+      description: 'Reason for kick',
+      required: false,
+    },
+  ],
+  type: 1,
+};
 
-InstallGlobalCommands(process.env.APP_ID, ALL_COMMANDS);
+
+const ALL_COMMANDS = [
+  TEST_COMMAND,
+  CHALLENGE_COMMAND,
+  KICK_COMMAND,
+];
+
+
+InstallGlobalCommands(process.env.DISCORD_CLIENT_ID, ALL_COMMANDS);
