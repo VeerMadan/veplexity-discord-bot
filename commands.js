@@ -1,6 +1,10 @@
 import 'dotenv/config';
 import { getRPSChoices } from './game.js';
-import { capitalize, InstallGlobalCommands } from './utils.js';
+import {
+  capitalize,
+  InstallGuildCommands,
+} from './utils.js';
+
 
 
 
@@ -74,4 +78,8 @@ const ALL_COMMANDS = [
 ];
 
 
-InstallGlobalCommands(process.env.DISCORD_CLIENT_ID, ALL_COMMANDS);
+InstallGuildCommands(
+  process.env.DISCORD_CLIENT_ID,
+  process.env.GUILD_ID,
+  ALL_COMMANDS
+);
